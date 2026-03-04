@@ -3,10 +3,8 @@ name: Build Raspberry Pi OS image (auto-start mqtt_client)
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
-    paths:
-      - "src/**"
-      - ".github/**"
+    tags:
+      - 'v*'
 
 jobs:
   build-image:
@@ -151,6 +149,49 @@ jobs:
         run: |
           cd pi-gen
           sudo ./build-docker.sh
+
+      - name: Post-build verify (mount rootfs and check service)
+        run: |
+          set -euo pipefail
+
+          ZIP="$(ls -1 pi-gen/deploy/*-lite.zip | head -n 1)"
+          echo "Using ZIP: $ZIP"
+
+          mkdir -p /tmp/rpi-image-check
+          cp "$ZIP" /tmp/rpi-image-check/
+          cd /tmp/rpi-image-check
+          unzip -q "$(basename "$ZIP")"
+
+          IMG="$(ls -1 *.img | head -n 1)"
+          echo "Using IMG: $IMG"
+          ls -lah "$IMG"
+
+          # Attache l'image en loop + partitions (/dev/loopXp1, /dev/loopXp2, ...)
+          LOOP_DEV="$(sudo losetup --find --show --partscan "$IMG")"
+          echo "Loop device: $LOOP_DEV"
+          sudo lsblk "$LOOP_DEV"
+
+          # En général: p1 = boot (FAT), p2 = root (ext4)
+          ROOT_PART="${LOOP_DEV}p2"
+          if [ ! -b "$ROOT_PART" ]; then
+            echo "Root partition not found at $ROOT_PART"
+            sudo losetup -d "$LOOP_DEV"
+            exit 1
+          fi
+
+          sudo mkdir -p /mnt/rpi-root
+          sudo mount "$ROOT_PART" /mnt/rpi-root
+
+          echo "Checking expected files in rootfs..."
+          sudo test -f /mnt/rpi-root/etc/systemd/system/mqtt-client.service
+          sudo test -L /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/mqtt-client.service
+          sudo test -f /mnt/rpi-root/opt/mqttPython/src/mqtt_client.py
+          sudo test -x /mnt/rpi-root/opt/mqttPython/venv/bin/python
+
+          echo "OK: service + app + venv present, service enabled."
+
+          sudo umount /mnt/rpi-root
+          sudo losetup -d "$LOOP_DEV"
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
