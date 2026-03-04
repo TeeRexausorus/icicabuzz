@@ -97,7 +97,8 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             mosquitto mosquitto-clients \
-            python3 python3-pip python3-venv
+            python3 python3-pip python3-venv \
+            python3-dev gcc build-essential
           systemctl enable mosquitto
           CHROOT_EOF
 

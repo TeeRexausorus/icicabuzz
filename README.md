@@ -20,7 +20,7 @@ Il faut étendre ces pattes en y soudant des câbles mous, les faire passer à t
 De même, il faut brancher les deux pins du bouton à la board RJ45.
 
 #### Raspberry Pi
-Un circuit imprimé a été créé pour simplifier les câblages. Il suffit d'y souder les headers et de connecter aux headers 8 pins les boards RJ45 et au header 4 pin l'écran LCD.
+Un circuit imprimé a été créé pour simplifier les câblages, les résistances correctes sont déjà soudées sur le circuit. Il suffit d'y souder les headers et de connecter aux headers 8 pins les boards RJ45 et au header 4 pin l'écran LCD.
 
 ## MQTT protocol
 On a choisi d'utiliser des topics MQTT dédiés :
