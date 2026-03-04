@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import json, time, sys
+import json
+import time
+import sys
 from signal import SIGINT, SIGTERM, signal
 from gpiozero import Button
 
