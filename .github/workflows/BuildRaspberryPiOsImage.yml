@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             git rsync coreutils quilt parted qemu-user-static debootstrap \
-            zerofree zip dosfstools bsdtar libcap2-bin grep xz-utils file curl
+            zerofree zip dosfstools libarchive-tools libcap2-bin grep xz-utils file curl
 
       - name: Clone pi-gen
         run: |
