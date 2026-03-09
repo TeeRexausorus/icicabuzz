@@ -3,6 +3,7 @@ name: Build Raspberry Pi OS image (auto-start mqtt_client)
 on:
   workflow_dispatch:
   push:
+    branches: [ "main" ]
     tags:
       - 'v*'
 
@@ -74,6 +75,7 @@ jobs:
           Group=pi
           WorkingDirectory=/opt/mqttPython/src
           Environment=PYTHONUNBUFFERED=1
+          Environment=GPIOZERO_PIN_FACTORY=lgpio
           ExecStart=/opt/mqttPython/venv/bin/python /opt/mqttPython/src/mqtt_client.py
           Restart=always
           RestartSec=3
@@ -96,14 +98,15 @@ jobs:
           apt-get install -y --no-install-recommends \
             mosquitto mosquitto-clients \
             python3 python3-pip python3-venv \
-            python3-dev gcc build-essential
+            python3-dev gcc build-essential \
+            python3-lgpio
           systemctl enable mosquitto
           CHROOT_EOF
 
           # venv + dépendances python
           on_chroot <<'CHROOT_EOF'
           set -e
-          python3 -m venv /opt/mqttPython/venv
+          python3 -m venv --system-site-packages /opt/mqttPython/venv
           /opt/mqttPython/venv/bin/pip install --upgrade pip
           /opt/mqttPython/venv/bin/pip install amqtt gpiozero
           CHROOT_EOF
@@ -140,6 +143,9 @@ jobs:
 
           FIRST_USER_NAME="pi"
           FIRST_USER_PASS="${PI_PASSWORD}"
+
+          # Évite l'assistant de renommage/création d'utilisateur au 1er boot
+          DISABLE_FIRST_BOOT_USER_RENAME=1
           EOF
 
           touch pi-gen/stage2/04-mqtt/SKIP

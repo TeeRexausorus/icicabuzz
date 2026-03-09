@@ -14,10 +14,12 @@ Pour facilement identifier le raspberry pi sur le réseau, on affiche son IP sur
 #### Buzzer
 Le bouton-buzzer doit être modifié pour y mettre la LED RGB : Une patte en plastique (blanche) doit être coupéee pour passer les câbles. Il faut aussi couper une partie du support pour la même raison.
 La LED RGB a 4 pattes. La plus longue est l'anode communes, puis les trois autres pattes pour, de la plus grande à la plus petite, Bleu, Vert, et Rouge.
+
 ![LED Pinout](led_pinout.png)
+
 Il faut étendre ces pattes en y soudant des câbles mous, les faire passer à travers le support, jusqu'à la board RJ45 du buzzer. 
 
-De même, il faut brancher les deux pins du bouton à la board RJ45.
+De même, il faut brancher les deux pins du bouton à la board RJ45. 
 
 #### Raspberry Pi
 Un circuit imprimé a été créé pour simplifier les câblages, les résistances correctes sont déjà soudées sur le circuit. Il suffit d'y souder les headers et de connecter aux headers 8 pins les boards RJ45 et au header 4 pin l'écran LCD.
