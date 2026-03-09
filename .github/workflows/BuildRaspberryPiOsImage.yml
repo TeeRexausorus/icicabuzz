@@ -61,6 +61,13 @@ jobs:
           mkdir -p pi-gen/stage2/04-mqtt/files/app
           rsync -a ./src ./README.md ./watch_gpio.py ./simulTest.py pi-gen/stage2/04-mqtt/files/app/ || true
 
+          # 2b) Configuration Mosquitto pour écoute réseau
+          mkdir -p pi-gen/stage2/04-mqtt/files/mosquitto
+          cat > pi-gen/stage2/04-mqtt/files/mosquitto/listener.conf <<'EOF'
+          listener 1883 0.0.0.0
+          allow_anonymous true
+          EOF
+
           # 3) Ajoute le service systemd
           mkdir -p pi-gen/stage2/04-mqtt/files/systemd
           cat > pi-gen/stage2/04-mqtt/files/systemd/mqtt-client.service <<'EOF'
@@ -91,6 +98,10 @@ jobs:
           install -d "${ROOTFS_DIR}/opt/mqttPython"
           rsync -a "${STAGE_DIR}/04-mqtt/files/app/" "${ROOTFS_DIR}/opt/mqttPython/"
 
+          install -d "${ROOTFS_DIR}/etc/mosquitto/conf.d"
+          install -m 0644 "${STAGE_DIR}/04-mqtt/files/mosquitto/listener.conf" \
+            "${ROOTFS_DIR}/etc/mosquitto/conf.d/listener.conf"
+
           # Dépendances système
           on_chroot <<'CHROOT_EOF'
           set -e
@@ -100,12 +111,8 @@ jobs:
             python3 python3-pip python3-venv \
             python3-dev gcc build-essential \
             python3-lgpio
-          systemctl enable mosquitto
-          CHROOT_EOF
-
-          on_chroot <<'CHROOT_EOF'
-          set -e
           chown -R pi:pi /opt/mqttPython
+          systemctl enable mosquitto
           CHROOT_EOF
 
           # venv + dépendances python
