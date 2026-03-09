@@ -5,7 +5,7 @@ import json
 from gpiozero import Button, RGBLED
 
 # Chemin vers le fichier de configuration JSON
-config_file = 'config.json'
+config_file = '/opt/mqttPython/src/config.json'
 client = MQTTClient()
 config = {}
 controller: "ButtonController|None" = None

@@ -103,6 +103,11 @@ jobs:
           systemctl enable mosquitto
           CHROOT_EOF
 
+          on_chroot <<'CHROOT_EOF'
+          set -e
+          chown -R pi:pi /opt/mqttPython
+          CHROOT_EOF
+
           # venv + dépendances python
           on_chroot <<'CHROOT_EOF'
           set -e
