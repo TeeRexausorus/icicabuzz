@@ -28,8 +28,8 @@ def ecrire_config(config):
 
 
 async def publish_buzzer(client, index):
-    payload = str(index + 1).encode("utf-8")
-    await client.publish('buzzer/pressed', payload, qos=1)
+    payload = json.dumps({'pressed': int(index + 1)})
+    await client.publish('buzzer/pressed', payload.encode("utf-8"), qos=1)
 
 
 class ButtonController:

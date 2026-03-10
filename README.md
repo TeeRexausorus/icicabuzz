@@ -43,8 +43,7 @@ On a choisi d'utiliser des topics MQTT dédiés :
 - buzzer/config
 - buzzer/pressed
 
-Les messages sur `buzzer/config` et `buzzer/control` sont en JSON.
-Le topic `buzzer/pressed` envoie un payload texte simple.
+Les messages sur `buzzer/config`, `buzzer/control` et `buzzer/pressed` sont en JSON.
 Le client utilise QoS 1 pour les abonnements et la publication de `buzzer/pressed`.
 
 ### buzzer/config
@@ -62,7 +61,7 @@ Ce topic est utilisé pour contrôler les buzzers en live :
 
 ### buzzer/pressed
 Ce topic indique quel buzzer a été pressé.
-Le payload est une chaîne UTF-8 contenant l’index humain du buzzer (`"1"`, `"2"`, ...), et non un JSON.
+Le payload est un JSON contenant l'index humain du buzzer sous la clé `pressed`. Exemple : `{"pressed": 1}`.
 
 ## Prochaine version
 On peut envisager une version 2 avec plus de buzzers connectables. Avec des 74HC595 (pour les leds) et des 74HC165 (pour les boutons).
