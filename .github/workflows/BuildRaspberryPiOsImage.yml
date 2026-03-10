@@ -206,16 +206,22 @@ jobs:
           sudo umount /mnt/rpi-root
           sudo losetup -d "$LOOP_DEV"
 
+      - name: Compress image for distribution
+        run: |
+          for img in pi-gen/deploy/*-lite.img; do
+            zip -9 "${img}.zip" "$img"
+          done
+
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: buzzer-central-lite
-          path: pi-gen/deploy/*-lite.img
+          path: pi-gen/deploy/*-lite.img.zip
           if-no-files-found: error
 
       - name: Publish image to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: pi-gen/deploy/*-lite.img
+          files: pi-gen/deploy/*-lite.img.zip
           generate_release_notes: true
