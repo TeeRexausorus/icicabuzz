@@ -35,6 +35,7 @@ On envoie les requêtes en JSON.
 Ce topic est utilisé pour configurer ces valeurs globales :
  - "blocked_color", la couleur des buzzers bloqués, au format d'un tableau représentant les valeurs RVB (entre 0 et 255) [R, V, B] (Par exemple [255, 255, 0] pour du jaune) : `{"blocked_color": [255, 255, 0]}`
  - "valid_color", la couleur du buzzer ayant la main, au format d'un tableau représentant les valeurs RVB (entre 0 et 255) [R, V, B] (Par exemple [0, 255, 0] pour du vert) : `{"valid_color": [0, 255, 0]}`
+ - "idle", l'animation rainbow des buzzers avant qu'un buzzer soit pressé. Valeur booléenne. `{"idle": True}`
 
 ### buzzer/control
 Ce topic est utilisé pour controler les buzzers en live :
