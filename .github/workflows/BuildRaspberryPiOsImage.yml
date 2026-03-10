@@ -3,7 +3,6 @@ name: Build Raspberry Pi OS image (auto-start mqtt_client)
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
     tags:
       - v*
 

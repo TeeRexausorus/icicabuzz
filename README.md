@@ -1,19 +1,19 @@
 # Buzzer Control
 Ce projet contiendra, à terme, tous les fichiers nécessaires à la création et opération des buzzers.
-Seront ajoutés les fichiers de fabrication des circuits imprimés, le BOM avec les liens des ressources nécessaires à acheter, l'iso du reaspberry pi, les fichiers 3D et de découpe...
+Seront ajoutés les fichiers de fabrication des circuits imprimés, le BOM avec les liens des ressources nécessaires à acheter, l'iso du Raspberry Pi, les fichiers 3D et de découpe...
 
 ## Choix technique et limitations
 Le protocole MQTT a été demandé par le potentiel client initial.
 On n'a pas besoin de beaucoup de ressources pour ce projet, donc on a choisi d'utiliser un Raspberry Pi Zero W pour centraliser les buzzers.
 
-Afin de facilement connecter les buzzers au boitier central, on a choisi d'utiliser des câbles RJ45. Du fait du câblage interne, il y a un maximum de 5 buzzers.
+Afin de facilement connecter les buzzers au boîtier central, on a choisi d'utiliser des câbles RJ45. Du fait du câblage interne, il y a un maximum de 5 buzzers.
 
-Pour facilement identifier le raspberry pi sur le réseau, on affiche son IP sur un écran LCD incorporé au boitier.
+Pour facilement identifier le Raspberry Pi sur le réseau, on affiche son IP sur un écran LCD incorporé au boitier.
 
-### Montage & Cablage
+### Montage & Câblage
 #### Buzzer
-Le bouton-buzzer doit être modifié pour y mettre la LED RGB : Une patte en plastique (blanche) doit être coupéee pour passer les câbles. Il faut aussi couper une partie du support pour la même raison.
-La LED RGB a 4 pattes. La plus longue est l'anode communes, puis les trois autres pattes pour, de la plus grande à la plus petite, Bleu, Vert, et Rouge.
+Le bouton-buzzer doit être modifié pour y mettre la LED RGB : Une patte en plastique (blanche) doit être coupée pour passer les câbles. Il faut aussi couper une partie du support pour la même raison.
+La LED RGB a 4 pattes. La plus longue est l'anode commune, puis les trois autres pattes pour, de la plus grande à la plus petite, Bleu, Vert, et Rouge.
 
 ![LED Pinout](led_pinout.png)
 
@@ -24,12 +24,28 @@ De même, il faut brancher les deux pins du bouton à la board RJ45.
 #### Raspberry Pi
 Un circuit imprimé a été créé pour simplifier les câblages, les résistances correctes sont déjà soudées sur le circuit. Il suffit d'y souder les headers et de connecter aux headers 8 pins les boards RJ45 et au header 4 pin l'écran LCD.
 
-## MQTT protocol
+## Configuration
+On a choisi d'utiliser un fichier de configuration pour configurer les valeurs globales.
+Les champs de configuration sont :
+ - "blocked_color" : Couleur des buzzers quand ils sont verrouillés. format : `[R, V, B]`
+ - "valid_color" : Couleur des buzzers quand ils sont validés. format : `[R, V, B]`
+ - "idle" : Booléen, arc-en-ciel ou rien.
+ - "input_pins" : Liste des pins des boutons. Ne pas changer.
+ - "led_pins" : Liste des pins des LEDs. Ne pas changer. Le nombre de pins est contrôlé pour être un multiple de 3 (Une pin rouge, une bleue, une verte pour chaque buzzer).
+
+Ce fichier se trouve dans `/opt/mqttPython/src/config.json`.
+
+## Protocole MQTT
+Le boitier central (Raspberry Pi) auto héberge le broker MQTT. Le client de contrôle des buzzers se connecte à ce broker MQTT local.
+
 On a choisi d'utiliser des topics MQTT dédiés :
 - buzzer/control
 - buzzer/config
+- buzzer/pressed
 
-On envoie les requêtes en JSON.
+Les messages sur `buzzer/config` et `buzzer/control` sont en JSON.
+Le topic `buzzer/pressed` envoie un payload texte simple.
+Le client utilise QoS 1 pour les abonnements et la publication de `buzzer/pressed`.
 
 ### buzzer/config
 Ce topic est utilisé pour configurer ces valeurs globales :
@@ -38,10 +54,15 @@ Ce topic est utilisé pour configurer ces valeurs globales :
  - "idle", l'animation rainbow des buzzers avant qu'un buzzer soit pressé. Valeur booléenne. `{"idle": True}`
 
 ### buzzer/control
-Ce topic est utilisé pour controler les buzzers en live :
+Ce topic est utilisé pour contrôler les buzzers en live :
  - "release" : sert à déverrouiller un/des buzzer•s, "" pour tous, sous forme de tableau pour 1 à plusieurs : [1, 2, ...]. En utilisant la numérotation "humaine", 1 à 5. : `{"release": [1, 2, 3]}` ou `{"release": ""}`
- - "lock" : Bloque "définitivement" (jusqu'au débloquage) le•s buzzer•s, sous forme de tableau aussi : `{"lock": [1, 2, 3]}` ou `{"lock": []}`
+ - "lock" : Bloque "définitivement" (jusqu'au déblocage) le•s buzzer•s, sous forme de tableau aussi : `{"lock": [1, 2, 3]}` ou `{"lock": []}`
  - "unlock" : Débloque le•s buzzer•s listé•s dans le tableau passé : `{"unlock": [1, 2, 3]}` ou `{"unlock": []}`
+ - "start", "block", "shameThem" sont définis dans le code, mais ne font rien pour le moment.
+
+### buzzer/pressed
+Ce topic indique quel buzzer a été pressé.
+Le payload est une chaîne UTF-8 contenant l’index humain du buzzer (`"1"`, `"2"`, ...), et non un JSON.
 
 ## Prochaine version
 On peut envisager une version 2 avec plus de buzzers connectables. Avec des 74HC595 (pour les leds) et des 74HC165 (pour les boutons).
