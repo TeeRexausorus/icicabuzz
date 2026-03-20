@@ -61,7 +61,7 @@ jobs:
 
           # 2) Copie l’app dans le payload pi-gen (dans l’image)
           mkdir -p pi-gen/stage2/04-mqtt/files/app
-          rsync -a ./src ./README.md ./watch_gpio.py pi-gen/stage2/04-mqtt/files/app/
+          rsync -a ./src ./README.md ./watch_gpio.py ./ip pi-gen/stage2/04-mqtt/files/app/
 
           # 2b) Configuration Mosquitto pour écoute réseau
           mkdir -p pi-gen/stage2/04-mqtt/files/mosquitto
@@ -70,12 +70,30 @@ jobs:
           allow_anonymous true
           EOF
 
-          # 3) Ajoute le service systemd
+          # 2c) Service pour afficher l'IP au démarrage
           mkdir -p pi-gen/stage2/04-mqtt/files/systemd
+          cat > pi-gen/stage2/04-mqtt/files/systemd/show-ip.service <<'EOF'
+          [Unit]
+          Description=Show Raspberry Pi IP on LCD
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          Type=oneshot
+          User=pi
+          Group=pi
+          WorkingDirectory=/opt/mqttPython/ip
+          ExecStart=/bin/bash /opt/mqttPython/ip/show_ip.sh
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+          # 3) Ajoute le service systemd principal
           cat > pi-gen/stage2/04-mqtt/files/systemd/mqtt-client.service <<'EOF'
           [Unit]
           Description=MQTT Client (buzzer)
-          Wants=network-online.target
+          Wants=network-online.target mosquitto.service
           After=network-online.target mosquitto.service
           
           [Service]
@@ -112,8 +130,12 @@ jobs:
             mosquitto mosquitto-clients \
             python3 python3-pip python3-venv \
             python3-dev gcc build-essential \
-            python3-lgpio
+            python3-lgpio i2c-tools python3-smbus
           chown -R pi:pi /opt/mqttPython
+
+          # Active I2C automatiquement
+          raspi-config nonint do_i2c 0
+
           systemctl enable mosquitto
           CHROOT_EOF
 
@@ -122,17 +144,24 @@ jobs:
           set -e
           python3 -m venv --system-site-packages /opt/mqttPython/venv
           /opt/mqttPython/venv/bin/pip install --upgrade pip
-          /opt/mqttPython/venv/bin/pip install amqtt gpiozero
+          /opt/mqttPython/venv/bin/pip install amqtt gpiozero RPLCD smbus2
+
+          apt-get purge -y --auto-remove gcc build-essential python3-dev
+          apt-get clean
+          rm -rf /var/lib/apt/lists/*
           CHROOT_EOF
 
           # Service systemd
           install -d "${ROOTFS_DIR}/etc/systemd/system"
           install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/mqtt-client.service" \
             "${ROOTFS_DIR}/etc/systemd/system/mqtt-client.service"
+          install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/show-ip.service" \
+            "${ROOTFS_DIR}/etc/systemd/system/show-ip.service"
 
           on_chroot <<'CHROOT_EOF'
           set -e
           systemctl enable mqtt-client.service
+          systemctl enable show-ip.service
           CHROOT_EOF
           EOF
           chmod +x pi-gen/stage2/04-mqtt/00-run.sh
