@@ -5,8 +5,8 @@ from RPLCD.i2c import CharLCD
 # Adapte selon ton écran
 I2C_ADDR = 0x27   # ou 0x3F
 I2C_PORT = 1
-LCD_COLS = 16
-LCD_ROWS = 2
+LCD_COLS = 20
+LCD_ROWS = 4
 
 def fit(text, width):
     return str(text)[:width].ljust(width)

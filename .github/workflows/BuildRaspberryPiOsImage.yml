@@ -227,6 +227,8 @@ jobs:
           sudo test -f /mnt/rpi-root/etc/systemd/system/mqtt-client.service
           sudo test -L /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/mqtt-client.service
           sudo test -f /mnt/rpi-root/opt/mqttPython/src/mqtt_client.py
+          sudo test -f /mnt/rpi-root/opt/mqttPython/ip/show_ip.sh
+          sudo test -f /mnt/rpi-root/opt/mqttPython/ip/lcd_write.py
           sudo test -x /mnt/rpi-root/opt/mqttPython/venv/bin/python
           sudo test -f /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
 
