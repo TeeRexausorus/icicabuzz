@@ -2,11 +2,14 @@
 import sys
 from RPLCD.i2c import CharLCD
 
-# Adapte selon ton écran
 I2C_ADDR = 0x27   # ou 0x3F
 I2C_PORT = 1
 LCD_COLS = 20
 LCD_ROWS = 4
+PROJECT_NAME = "icicabuzz"
+
+def mid_line(line):
+    return (LCD_COLS - len(PROJECT_NAME)) // 2
 
 def fit(text, width):
     return str(text)[:width].ljust(width)
@@ -27,9 +30,11 @@ def main():
     )
 
     lcd.clear()
-    lcd.cursor_pos = (0, 0)
+    lcd.cursor_pos = (0,  mid_line(PROJECT_NAME)
+    lcd.write_string(fit(PROJECT_NAME, LCD_COLS))
+    lcd.cursor_pos = (1, mid_line(line1)
     lcd.write_string(fit(line1, LCD_COLS))
-    lcd.cursor_pos = (1, 0)
+    lcd.cursor_pos = (2, mid_line(line2)
     lcd.write_string(fit(line2, LCD_COLS))
 
 if __name__ == "__main__":

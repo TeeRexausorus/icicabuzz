@@ -72,6 +72,23 @@ jobs:
 
           # 2c) Service pour afficher l'IP au démarrage
           mkdir -p pi-gen/stage2/04-mqtt/files/systemd
+          cat > pi-gen/stage2/04-mqtt/files/systemd/lcd-booting.service <<'EOF'
+          [Unit]
+          Description=LCD boot message
+          DefaultDependencies=no
+          After=local-fs.target systemd-modules-load.service dev-i2c-1.device
+          Wants=dev-i2c-1.device
+          Before=network-pre.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/opt/mqttPython/venv/bin/python /opt/mqttPython/ip/lcd_write.py "Booting..." ""
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=sysinit.target
+          EOF
+
           cat > pi-gen/stage2/04-mqtt/files/systemd/show-ip.service <<'EOF'
           [Unit]
           Description=Show Raspberry Pi IP on LCD
@@ -155,12 +172,15 @@ jobs:
           install -d "${ROOTFS_DIR}/etc/systemd/system"
           install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/mqtt-client.service" \
             "${ROOTFS_DIR}/etc/systemd/system/mqtt-client.service"
+          install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/lcd-booting.service" \
+            "${ROOTFS_DIR}/etc/systemd/system/lcd-booting.service"
           install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/show-ip.service" \
             "${ROOTFS_DIR}/etc/systemd/system/show-ip.service"
 
           on_chroot <<'CHROOT_EOF'
           set -e
           systemctl enable mqtt-client.service
+          systemctl enable lcd-booting.service
           systemctl enable show-ip.service
           CHROOT_EOF
           EOF
@@ -226,6 +246,8 @@ jobs:
           echo "Checking expected files in rootfs..."
           sudo test -f /mnt/rpi-root/etc/systemd/system/mqtt-client.service
           sudo test -L /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/mqtt-client.service
+          sudo test -f /mnt/rpi-root/etc/systemd/system/lcd-booting.service
+          sudo test -L /mnt/rpi-root/etc/systemd/system/sysinit.target.wants/lcd-booting.service
           sudo test -f /mnt/rpi-root/opt/mqttPython/src/mqtt_client.py
           sudo test -f /mnt/rpi-root/opt/mqttPython/ip/show_ip.sh
           sudo test -f /mnt/rpi-root/opt/mqttPython/ip/lcd_write.py
