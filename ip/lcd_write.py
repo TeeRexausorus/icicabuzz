@@ -30,11 +30,11 @@ def main():
     )
 
     lcd.clear()
-    lcd.cursor_pos = (0,  mid_line(PROJECT_NAME)
+    lcd.cursor_pos = (0,  mid_line(PROJECT_NAME))
     lcd.write_string(fit(PROJECT_NAME, LCD_COLS))
-    lcd.cursor_pos = (1, mid_line(line1)
+    lcd.cursor_pos = (1, mid_line(line1))
     lcd.write_string(fit(line1, LCD_COLS))
-    lcd.cursor_pos = (2, mid_line(line2)
+    lcd.cursor_pos = (2, mid_line(line2))
     lcd.write_string(fit(line2, LCD_COLS))
 
 if __name__ == "__main__":
