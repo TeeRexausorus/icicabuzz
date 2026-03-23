@@ -9,5 +9,5 @@
   ],
   "blocked_color":  [255, 0, 0],
   "valid_color":    [0, 255, 0],
-  "idle": true
+  "idle": [0, 0, 100]
 }

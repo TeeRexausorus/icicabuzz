@@ -65,13 +65,25 @@ class ButtonController:
         self.idle_task = None
 
         # Démarre le mode idle
-        if config.get("idle", False):
+        idle = config.get("idle", False)
+
+        if isinstance(idle, list):
+            idle_color = tuple(c / 255 for c in idle)
+            self.start_idle_block(idle_color)
+        elif idle is True:
             self.start_idle_animation()
 
     def start_idle_animation(self):
         """Lance la coroutine idle en tâche de fond"""
         if self.idle_task is None or self.idle_task.done():
             self.idle_task = self.loop.create_task(self._idle_animation())
+
+    def start_idle_block(self, color):
+        if self.idle_task and not self.idle_task.done():
+                    self.idle_task.cancel()
+        """Lance la coroutine idle en tâche de fond"""
+        if self.idle_task is None or self.idle_task.done():
+            self.idle_task = self.loop.create_task(self._idle_block(color))
 
     async def _idle_animation(self):
         """Arc-en-ciel fluide tant qu’aucun buzzer n’est actif"""
@@ -83,6 +95,17 @@ class ButtonController:
                 offset_hue = (hue + i * 30) % 360
                 r, g, b = self.hsv_to_rgb(offset_hue / 360, 1.0, 0.2)
                 led.color = (r, g, b)
+            await asyncio.sleep(0.01)  # 50 ms → ~20 fps
+
+        # quand on sort (verrou activé), on éteint tout
+        for led in self.leds:
+            led.off()
+
+
+    async def _idle_block(self, color_tuple):
+        while not self.locked:
+            for led in self.leds:
+                led.color = color_tuple
             await asyncio.sleep(0.01)  # 50 ms → ~20 fps
 
         # quand on sort (verrou activé), on éteint tout
@@ -132,7 +155,11 @@ class ButtonController:
                 led.off()
             self.locked = False
         self.active_led_index = None
-        if config.get("idle", False):
+        idle = config.get("idle", False)
+        if isinstance(idle, list):
+            idle_color = tuple(c / 255 for c in idle)
+            self.start_idle_block(idle_color)
+        elif idle is True:
             self.start_idle_animation()
 
     def lock(self, lock_array):
