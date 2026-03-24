@@ -234,6 +234,78 @@ class TestAsyncFunctions(unittest.IsolatedAsyncioTestCase):
         sleep_mock.assert_awaited_once_with(5)
         fake_client.disconnect.assert_awaited_once()
 
+    async def test_mqtt_client_forwards_payload_and_topic_and_subscribes_in_order(self):
+        class Message:
+            def __init__(self, payload, topic):
+                self.publish_packet = types.SimpleNamespace(
+                    payload=types.SimpleNamespace(data=payload),
+                    variable_header=types.SimpleNamespace(topic_name=topic),
+                )
+
+        class Client:
+            def __init__(self):
+                self.connect = mock.AsyncMock()
+                self.subscribe = mock.AsyncMock()
+                self.disconnect = mock.AsyncMock()
+                self._calls = 0
+
+            async def deliver_message(self):
+                self._calls += 1
+                if self._calls == 1:
+                    return Message(b'{"idle": true}', "buzzer/config")
+                raise asyncio.CancelledError()
+
+        fake_client = Client()
+
+        with (
+            mock.patch.object(MQTT_MODULE, "MQTTClient", return_value=fake_client),
+            mock.patch.object(MQTT_MODULE, "handle_message") as handle_message_mock,
+        ):
+            await MQTT_MODULE.mqtt_client()
+
+        fake_client.connect.assert_awaited_once_with("mqtt://localhost:1883/")
+        self.assertEqual(
+            [
+                mock.call([("buzzer/config", 1)]),
+                mock.call([("buzzer/control", 1)]),
+                mock.call([("buzzer/pressed", 1)]),
+            ],
+            fake_client.subscribe.await_args_list,
+        )
+        handle_message_mock.assert_called_once_with(b'{"idle": true}', "buzzer/config")
+        fake_client.disconnect.assert_awaited_once()
+
+    async def test_mqtt_client_retries_after_delivery_error(self):
+        class Client:
+            def __init__(self):
+                self.connect_attempts = 0
+                self.connect = mock.AsyncMock(side_effect=self._connect_impl)
+                self.subscribe = mock.AsyncMock()
+                self.disconnect = mock.AsyncMock()
+                self.delivery_calls = 0
+
+            async def _connect_impl(self, _url):
+                self.connect_attempts += 1
+                if self.connect_attempts == 2:
+                    raise asyncio.CancelledError()
+
+            async def deliver_message(self):
+                self.delivery_calls += 1
+                raise RuntimeError("delivery failure")
+
+        fake_client = Client()
+
+        with (
+            mock.patch.object(MQTT_MODULE, "MQTTClient", return_value=fake_client),
+            mock.patch("asyncio.sleep", new=mock.AsyncMock()) as sleep_mock,
+        ):
+            await MQTT_MODULE.mqtt_client()
+
+        self.assertEqual(2, fake_client.connect_attempts)
+        sleep_mock.assert_awaited_once_with(5)
+        self.assertEqual(1, fake_client.delivery_calls)
+        fake_client.disconnect.assert_awaited_once()
+
 
 class TestButtonController(unittest.TestCase):
     def setUp(self):
@@ -357,6 +429,31 @@ class TestButtonController(unittest.TestCase):
         controller.cleanup()
         self.assertTrue(all(not led.is_on for led in controller.leds))
 
+    def test_start_idle_block_cancels_running_task(self):
+        loop = FakeLoop()
+        MQTT_MODULE.config = {"idle": False, "blocked_color": [255, 0, 0], "valid_color": [0, 255, 0]}
+        controller = MQTT_MODULE.ButtonController([17], [1, 2, 3], loop)
+
+        running_task = mock.Mock()
+        running_task.done.return_value = False
+        controller.idle_task = running_task
+
+        controller.start_idle_block((0.1, 0.2, 0.3))
+
+        running_task.cancel.assert_called_once()
+        self.assertIs(controller.idle_task, running_task)
+
+    def test_idle_color_list_starts_block_mode_and_release_restarts_it(self):
+        loop = FakeLoop()
+        MQTT_MODULE.config = {"idle": [10, 20, 30], "blocked_color": [255, 0, 0], "valid_color": [0, 255, 0]}
+        controller = MQTT_MODULE.ButtonController([17], [1, 2, 3], loop)
+        self.assertEqual(1, len(loop.tasks))
+
+        with mock.patch.object(controller, "start_idle_block") as start_idle_block_mock:
+            controller.release(None)
+
+        start_idle_block_mock.assert_called_once_with((10 / 255, 20 / 255, 30 / 255))
+
 
 class TestIdleAnimation(unittest.IsolatedAsyncioTestCase):
     async def test_idle_animation_exits_and_turns_leds_off_when_locked(self):
@@ -392,6 +489,22 @@ class TestIdleAnimation(unittest.IsolatedAsyncioTestCase):
             controller.handle_button_press(0)
 
         publish_mock.assert_not_called()
+
+    async def test_idle_block_runs_one_iteration_then_turns_off(self):
+        MQTT_MODULE.config = {"idle": False, "blocked_color": [255, 0, 0], "valid_color": [0, 255, 0]}
+        controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
+        target_color = (0.2, 0.3, 0.4)
+        observed_colors = []
+
+        async def stop_after_one_tick(_delay):
+            observed_colors.extend([led.color for led in controller.leds])
+            controller.locked = True
+
+        with mock.patch("asyncio.sleep", side_effect=stop_after_one_tick):
+            await controller._idle_block(target_color)
+
+        self.assertEqual([target_color, target_color], observed_colors)
+        self.assertTrue(all(not led.is_on for led in controller.leds))
 
 
 if __name__ == "__main__":
