@@ -1,0 +1,8 @@
+# Runtime dependencies
+amqtt
+gpiozero
+rplcd
+smbus2
+
+# Test/CI tooling
+coverage
