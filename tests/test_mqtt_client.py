@@ -175,7 +175,12 @@ class TestAsyncFunctions(unittest.IsolatedAsyncioTestCase):
     async def test_publish_buzzer(self):
         client = mock.AsyncMock()
         await MQTT_MODULE.publish_buzzer(client, 2)
-        client.publish.assert_awaited_once_with("buzzer/pressed", b'{"pressed": 3}', qos=1)
+        client.publish.assert_awaited_once_with(
+            "buzzer/pressed",
+            b'{"pressed": 3}',
+            qos=1,
+            retain=True,
+        )
 
     async def test_mqtt_client_connect_subscribe_deliver_then_cancel(self):
         class Message:
