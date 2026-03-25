@@ -1,7 +1,8 @@
 import asyncio
-from asyncio import run_coroutine_threadsafe
-from amqtt.client import MQTTClient
 import json
+from asyncio import run_coroutine_threadsafe
+
+from amqtt.client import MQTTClient
 from gpiozero import Button, RGBLED
 
 # Chemin vers le fichier de configuration JSON
@@ -9,6 +10,7 @@ config_file = '/opt/mqttPython/src/config.json'
 client = None
 config = {}
 controller: "ButtonController|None" = None
+
 
 # Lecture du fichier JSON
 def lire_config():
@@ -29,7 +31,7 @@ def ecrire_config(config):
 
 async def publish_buzzer(client, index):
     payload = json.dumps({'pressed': int(index + 1)})
-    await client.publish('buzzer/pressed', payload.encode("utf-8"), qos=1)
+    await client.publish('buzzer/pressed', payload.encode("utf-8"), qos=1, retain=True)
 
 
 class ButtonController:
@@ -45,7 +47,7 @@ class ButtonController:
         # Boutons en pull-down (pull_up=False). Anti-rebond ~200 ms
         self.buttons = []
         for idx, pin in enumerate(self.input_pins):
-            b = Button(pin, pull_up=True, bounce_time=0.01)
+            b = Button(pin, pull_up=True, bounce_time=0.05)
             b.when_pressed = (lambda i=idx: self.handle_button_press(i))
             self.buttons.append(b)
 
@@ -80,7 +82,7 @@ class ButtonController:
 
     def start_idle_block(self, color):
         if self.idle_task and not self.idle_task.done():
-                    self.idle_task.cancel()
+            self.idle_task.cancel()
         """Lance la coroutine idle en tâche de fond"""
         if self.idle_task is None or self.idle_task.done():
             self.idle_task = self.loop.create_task(self._idle_block(color))
@@ -100,7 +102,6 @@ class ButtonController:
         # quand on sort (verrou activé), on éteint tout
         for led in self.leds:
             led.off()
-
 
     async def _idle_block(self, color_tuple):
         while not self.locked:
