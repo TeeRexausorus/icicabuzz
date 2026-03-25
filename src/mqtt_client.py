@@ -14,6 +14,7 @@ controller: "ButtonController|None" = None
 
 # Lecture du fichier JSON
 def lire_config():
+    global config
     try:
         with open(config_file, 'r') as f:
             config = json.load(f)
@@ -24,21 +25,21 @@ def lire_config():
 
 
 # Écriture dans le fichier JSON
-def ecrire_config(config):
+def ecrire_config(new_config):
     with open(config_file, 'w') as f:
-        json.dump(config, f, indent=2)
+        json.dump(new_config, f, indent=2)
 
 
-async def publish_buzzer(client, index):
+async def publish_buzzer(pub_client, index):
     payload = json.dumps({'pressed': int(index + 1)})
-    await client.publish('buzzer/pressed', payload.encode("utf-8"), qos=1, retain=True)
+    await pub_client.publish('buzzer/pressed', payload.encode("utf-8"), qos=1, retain=True)
 
 
 class ButtonController:
-    def __init__(self, input_pins, led_pins, loop):
+    def __init__(self, input_pins, led_pins, idle_loop):
         self.input_pins = list(dict.fromkeys(input_pins))
         self.led_pins = led_pins
-        self.loop = loop
+        self.loop = idle_loop
         self.locked_array = list()
 
         if len(self.led_pins) % 3 != 0:
@@ -138,7 +139,8 @@ class ButtonController:
         for ind in range(len(self.input_pins)):
             self.leds[ind].color = valid_color if ind == index else blocked_color
 
-    def hsv_to_rgb(self, h, s, v):
+    @staticmethod
+    def hsv_to_rgb(h, s, v):
         """Convertit une teinte [0–1] HSV en RGB [0–1]"""
         import colorsys
         return colorsys.hsv_to_rgb(h, s, v)
@@ -204,7 +206,6 @@ def parse_json_or_none(payload):
     except (UnicodeDecodeError, json.JSONDecodeError) as e:
         print(e)
         return None
-    return True
 
 
 def handle_message(data, topic):
