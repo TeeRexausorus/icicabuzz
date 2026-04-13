@@ -67,6 +67,8 @@ jobs:
           mkdir -p pi-gen/stage2/04-mqtt/files/mosquitto
           cat > pi-gen/stage2/04-mqtt/files/mosquitto/listener.conf <<'EOF'
           listener 1883 0.0.0.0
+          listener 9001 0.0.0.0
+          protocol websockets
           allow_anonymous true
           EOF
 
@@ -253,6 +255,8 @@ jobs:
           sudo test -f /mnt/rpi-root/opt/mqttPython/ip/lcd_write.py
           sudo test -x /mnt/rpi-root/opt/mqttPython/venv/bin/python
           sudo test -f /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
+          sudo grep -q "^listener 9001 0.0.0.0$" /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
+          sudo grep -q "^protocol websockets$" /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
 
           echo "OK: service + app + venv + mosquitto config present."
 
