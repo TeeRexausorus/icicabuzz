@@ -166,20 +166,36 @@ class ButtonController:
             self.start_idle_animation()
 
     def lock(self, lock_array):
-        if lock_array is not None:
-            for led_ind in lock_array:
-                if self._valid_led_index(led_ind):
-                    self.leds[led_ind - 1].off()
-                    if (led_ind - 1) not in self.locked_array:
-                        self.locked_array.append(led_ind - 1)
+        if lock_array is None:
+            return
+
+        if len(lock_array) == 0:
+            self.locked_array = list(range(len(self.input_pins)))
+            for led in self.leds:
+                led.off()
+            return
+
+        for led_ind in lock_array:
+            if self._valid_led_index(led_ind):
+                self.leds[led_ind - 1].off()
+                if (led_ind - 1) not in self.locked_array:
+                    self.locked_array.append(led_ind - 1)
 
     def unlock(self, unlock_array):
-        if unlock_array is not None:
-            for led_ind in unlock_array:
-                if self._valid_led_index(led_ind):
-                    self.leds[led_ind - 1].off()
-                    if (led_ind - 1) in self.locked_array:
-                        self.locked_array.remove(led_ind - 1)
+        if unlock_array is None:
+            return
+
+        if len(unlock_array) == 0:
+            self.locked_array.clear()
+            for led in self.leds:
+                led.off()
+            return
+
+        for led_ind in unlock_array:
+            if self._valid_led_index(led_ind):
+                self.leds[led_ind - 1].off()
+                if (led_ind - 1) in self.locked_array:
+                    self.locked_array.remove(led_ind - 1)
 
     def cleanup(self):
         for led in self.leds:

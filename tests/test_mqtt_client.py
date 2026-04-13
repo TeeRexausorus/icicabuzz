@@ -360,6 +360,27 @@ class TestButtonController(unittest.TestCase):
         self.assertTrue(controller.locked)
         self.assertIsNone(controller.active_led_index)
 
+    def test_lock_empty_array_locks_all_buzzers(self):
+        controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
+        controller.leds[0].on()
+        controller.leds[1].on()
+
+        controller.lock([])
+
+        self.assertEqual([0, 1], controller.locked_array)
+        self.assertTrue(all(not led.is_on for led in controller.leds))
+
+    def test_unlock_empty_array_unlocks_all_buzzers(self):
+        controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
+        controller.locked_array = [0, 1]
+        controller.leds[0].on()
+        controller.leds[1].on()
+
+        controller.unlock([])
+
+        self.assertEqual([], controller.locked_array)
+        self.assertTrue(all(not led.is_on for led in controller.leds))
+
     def test_release_restarts_idle_when_enabled(self):
         loop = FakeLoop()
         MQTT_MODULE.config = {"idle": True, "blocked_color": [255, 0, 0], "valid_color": [0, 255, 0]}
