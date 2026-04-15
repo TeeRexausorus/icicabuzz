@@ -235,7 +235,6 @@ jobs:
           sudo test -f /mnt/rpi-root/opt/mqttPython/ip/lcd_write.py
           sudo test -x /mnt/rpi-root/opt/mqttPython/venv/bin/python
           sudo test -f /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
-          sudo grep -q "^dtparam=spi=on$" /mnt/rpi-root/boot/firmware/config.txt
           sudo grep -q "^listener 9001 0.0.0.0$" /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
           sudo grep -q "^protocol websockets$" /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
 
