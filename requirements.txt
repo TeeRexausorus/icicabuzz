@@ -3,6 +3,7 @@ amqtt
 gpiozero
 rplcd
 smbus2
+spidev
 
 # Test/CI tooling
 coverage

@@ -36,13 +36,13 @@ De même, il faut brancher les deux pins du bouton à la board RJ45.
 Voici le câblage à suivre :
 
 - 1 -> vide
-- 2 -> btn 1
+- 2 -> vide
 - 3 -> Anode Led
 - 4 -> Rouge Led
 - 5 -> Bleu Led
 - 6 -> Vert Led
-- 7 -> btn 2
-- 8 -> vide
+- 7 -> btn 1
+- 8 -> btn 2
 - SH -> vide
 
 #### Raspberry Pi
