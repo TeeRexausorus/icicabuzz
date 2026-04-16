@@ -132,13 +132,11 @@ jobs:
             mosquitto mosquitto-clients \
             python3 python3-pip python3-venv \
             python3-dev gcc build-essential \
-            python3-lgpio i2c-tools python3-smbus python3-spidev
+            python3-lgpio i2c-tools python3-smbus
           chown -R pi:pi /opt/mqttPython
 
           # Active I2C automatiquement
           raspi-config nonint do_i2c 0
-          # Active SPI automatiquement (MCP23S08 sur CE0)
-          raspi-config nonint do_spi 0
 
           systemctl enable mosquitto
           CHROOT_EOF
