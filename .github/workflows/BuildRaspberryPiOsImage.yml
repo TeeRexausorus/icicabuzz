@@ -108,6 +108,22 @@ jobs:
           WantedBy=multi-user.target
           EOF
 
+          cat > pi-gen/stage2/04-mqtt/files/systemd/wifi-connect.service <<'EOF'
+          [Unit]
+          Description=WiFi Connect Captive Portal
+          Wants=NetworkManager.service
+          After=NetworkManager.service
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/wifi-connect --portal-ssid BuzzerBox --ui-directory /usr/local/share/wifi-connect
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
           # 3) Ajoute le service systemd principal
           cat > pi-gen/stage2/04-mqtt/files/systemd/mqtt-client.service <<'EOF'
           [Unit]
@@ -147,15 +163,47 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             mosquitto mosquitto-clients \
+            network-manager \
             python3 python3-pip python3-venv \
             python3-dev gcc build-essential \
-            python3-lgpio i2c-tools python3-smbus
+            python3-lgpio i2c-tools python3-smbus \
+            curl ca-certificates tar
           chown -R pi:pi /opt/mqttPython
 
           # Active I2C automatiquement
           raspi-config nonint do_i2c 0
 
+          # WiFi Connect nécessite NetworkManager actif
+          systemctl disable dhcpcd || true
+          systemctl enable NetworkManager
           systemctl enable mosquitto
+          CHROOT_EOF
+
+          # Installe wifi-connect (binaire adapté à l'architecture de l'image)
+          on_chroot <<'CHROOT_EOF'
+          set -e
+          WIFI_CONNECT_VERSION="v4.11.84"
+          ARCH="$(dpkg --print-architecture)"
+          case "${ARCH}" in
+            armhf) WIFI_CONNECT_TARGET="armv7-unknown-linux-gnueabihf" ;;
+            arm64) WIFI_CONNECT_TARGET="aarch64-unknown-linux-gnu" ;;
+            *)
+              echo "Unsupported architecture for wifi-connect: ${ARCH}"
+              exit 1
+              ;;
+          esac
+
+          TMP_DIR="$(mktemp -d)"
+          cd "${TMP_DIR}"
+          curl -fL -o wifi-connect.tar.gz \
+            "https://github.com/balena-os/wifi-connect/releases/download/${WIFI_CONNECT_VERSION}/wifi-connect-${WIFI_CONNECT_TARGET}.tar.gz"
+          tar -xzf wifi-connect.tar.gz
+
+          install -d /usr/local/bin /usr/local/share/wifi-connect
+          install -m 0755 wifi-connect /usr/local/bin/wifi-connect
+          cp -a ui/. /usr/local/share/wifi-connect/
+
+          rm -rf "${TMP_DIR}"
           CHROOT_EOF
 
           # venv + dépendances python
@@ -178,12 +226,15 @@ jobs:
             "${ROOTFS_DIR}/etc/systemd/system/lcd-booting.service"
           install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/show-ip.service" \
             "${ROOTFS_DIR}/etc/systemd/system/show-ip.service"
+          install -m 0644 "${STAGE_DIR}/04-mqtt/files/systemd/wifi-connect.service" \
+            "${ROOTFS_DIR}/etc/systemd/system/wifi-connect.service"
 
           on_chroot <<'CHROOT_EOF'
           set -e
           systemctl enable mqtt-client.service
           systemctl enable lcd-booting.service
           systemctl enable show-ip.service
+          systemctl enable wifi-connect.service
           CHROOT_EOF
           EOF
           chmod +x pi-gen/stage2/04-mqtt/00-run.sh
@@ -208,6 +259,7 @@ jobs:
 
           FIRST_USER_NAME="pi"
           FIRST_USER_PASS="${PI_PASSWORD}"
+          WPA_COUNTRY="FR"
 
           # Évite l'assistant de renommage/création d'utilisateur au 1er boot
           DISABLE_FIRST_BOOT_USER_RENAME=1
@@ -255,6 +307,10 @@ jobs:
           sudo test -f /mnt/rpi-root/opt/mqttPython/ip/lcd_write.py
           sudo test -x /mnt/rpi-root/opt/mqttPython/venv/bin/python
           sudo test -f /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
+          sudo test -x /mnt/rpi-root/usr/local/bin/wifi-connect
+          sudo test -d /mnt/rpi-root/usr/local/share/wifi-connect
+          sudo test -f /mnt/rpi-root/etc/systemd/system/wifi-connect.service
+          sudo test -L /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/wifi-connect.service
           sudo grep -q "^listener 9001 0.0.0.0$" /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
           sudo grep -q "^protocol websockets$" /mnt/rpi-root/etc/mosquitto/conf.d/listener.conf
 
