@@ -360,6 +360,27 @@ class TestButtonController(unittest.TestCase):
         self.assertTrue(controller.locked)
         self.assertIsNone(controller.active_led_index)
 
+    def test_lock_empty_array_locks_all_buzzers(self):
+        controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
+        controller.leds[0].on()
+        controller.leds[1].on()
+
+        controller.lock([])
+
+        self.assertEqual([0, 1], controller.locked_array)
+        self.assertTrue(all(not led.is_on for led in controller.leds))
+
+    def test_unlock_empty_array_unlocks_all_buzzers(self):
+        controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
+        controller.locked_array = [0, 1]
+        controller.leds[0].on()
+        controller.leds[1].on()
+
+        controller.unlock([])
+
+        self.assertEqual([], controller.locked_array)
+        self.assertTrue(all(not led.is_on for led in controller.leds))
+
     def test_release_restarts_idle_when_enabled(self):
         loop = FakeLoop()
         MQTT_MODULE.config = {"idle": True, "blocked_color": [255, 0, 0], "valid_color": [0, 255, 0]}
@@ -400,6 +421,25 @@ class TestButtonController(unittest.TestCase):
             controller.handle_button_press(0)
 
         task.cancel.assert_called_once()
+
+    def test_handle_button_press_keeps_locked_buzzer_off(self):
+        controller = MQTT_MODULE.ButtonController(
+            [17, 27, 22],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            FakeLoop(),
+        )
+        controller.lock([3])
+
+        def fake_run_coroutine_threadsafe(coro, _loop):
+            coro.close()
+            return FakeFuture()
+
+        with mock.patch.object(MQTT_MODULE, "run_coroutine_threadsafe", side_effect=fake_run_coroutine_threadsafe):
+            controller.handle_button_press(0)
+
+        self.assertEqual((0.0, 1.0, 0.0), controller.leds[0].color)
+        self.assertEqual((1.0, 0.0, 0.0), controller.leds[1].color)
+        self.assertEqual((0.0, 0.0, 0.0), controller.leds[2].color)
 
     def test_handle_button_press_noop_when_locked_or_disabled(self):
         controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
@@ -510,6 +550,23 @@ class TestIdleAnimation(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([target_color, target_color], observed_colors)
         self.assertTrue(all(not led.is_on for led in controller.leds))
+
+    async def test_idle_block_keeps_locked_led_off(self):
+        MQTT_MODULE.config = {"idle": False, "blocked_color": [255, 0, 0], "valid_color": [0, 255, 0]}
+        controller = MQTT_MODULE.ButtonController([17, 27], [1, 2, 3, 4, 5, 6], FakeLoop())
+        controller.locked_array = [1]
+        target_color = (0.2, 0.3, 0.4)
+        observed_colors = []
+
+        async def stop_after_one_tick(_delay):
+            observed_colors.extend([led.color for led in controller.leds])
+            controller.locked = True
+
+        with mock.patch("asyncio.sleep", side_effect=stop_after_one_tick):
+            await controller._idle_block(target_color)
+
+        self.assertEqual(target_color, observed_colors[0])
+        self.assertEqual((0.0, 0.0, 0.0), observed_colors[1])
 
 
 if __name__ == "__main__":

@@ -20,11 +20,11 @@ def lire_config():
             config = json.load(f)
         return config
     except FileNotFoundError:
-        print("Fichier de configuration non trouvé, création d'un fichier vide.")
+        print("Fichier de configuration non trouve, creation d'un fichier vide.")
         return {}
 
 
-# Écriture dans le fichier JSON
+# Ecriture dans le fichier JSON
 def ecrire_config(new_config):
     with open(config_file, 'w') as f:
         json.dump(new_config, f, indent=2)
@@ -67,7 +67,7 @@ class ButtonController:
         self.lock_timer = None
         self.idle_task = None
 
-        # Démarre le mode idle
+        # Demarre le mode idle
         idle = config.get("idle", False)
 
         if isinstance(idle, list):
@@ -77,40 +77,46 @@ class ButtonController:
             self.start_idle_animation()
 
     def start_idle_animation(self):
-        """Lance la coroutine idle en tâche de fond"""
+        """Lance la coroutine idle en tache de fond"""
         if self.idle_task is None or self.idle_task.done():
             self.idle_task = self.loop.create_task(self._idle_animation())
 
     def start_idle_block(self, color):
         if self.idle_task and not self.idle_task.done():
             self.idle_task.cancel()
-        """Lance la coroutine idle en tâche de fond"""
+        """Lance la coroutine idle en tache de fond"""
         if self.idle_task is None or self.idle_task.done():
             self.idle_task = self.loop.create_task(self._idle_block(color))
 
     async def _idle_animation(self):
-        """Arc-en-ciel fluide tant qu’aucun buzzer n’est actif"""
+        """Arc-en-ciel fluide tant qu'aucun buzzer n'est actif"""
         hue = 0
         while not self.locked:
             hue = (hue + 2) % 360
             for i, led in enumerate(self.leds):
-                # déphase légèrement chaque LED pour un effet circulaire
+                if i in self.locked_array:
+                    led.off()
+                    continue
+                # Dephase legerement chaque LED pour un effet circulaire
                 offset_hue = (hue + i * 30) % 360
                 r, g, b = self.hsv_to_rgb(offset_hue / 360, 1.0, 0.2)
                 led.color = (r, g, b)
-            await asyncio.sleep(0.01)  # 50 ms → ~20 fps
+            await asyncio.sleep(0.01)  # ~20 fps
 
-        # quand on sort (verrou activé), on éteint tout
+        # quand on sort (verrou active), on eteint tout
         for led in self.leds:
             led.off()
 
     async def _idle_block(self, color_tuple):
         while not self.locked:
-            for led in self.leds:
-                led.color = color_tuple
-            await asyncio.sleep(0.01)  # 50 ms → ~20 fps
+            for i, led in enumerate(self.leds):
+                if i in self.locked_array:
+                    led.off()
+                else:
+                    led.color = color_tuple
+            await asyncio.sleep(0.01)  # ~20 fps
 
-        # quand on sort (verrou activé), on éteint tout
+        # quand on sort (verrou active), on eteint tout
         for led in self.leds:
             led.off()
 
@@ -137,11 +143,14 @@ class ButtonController:
             self.idle_task.cancel()
 
         for ind in range(len(self.input_pins)):
-            self.leds[ind].color = valid_color if ind == index else blocked_color
+            if ind in self.locked_array:
+                self.leds[ind].off()
+            else:
+                self.leds[ind].color = valid_color if ind == index else blocked_color
 
     @staticmethod
     def hsv_to_rgb(h, s, v):
-        """Convertit une teinte [0–1] HSV en RGB [0–1]"""
+        """Convertit une teinte [0-1] HSV en RGB [0-1]"""
         import colorsys
         return colorsys.hsv_to_rgb(h, s, v)
 
@@ -166,27 +175,43 @@ class ButtonController:
             self.start_idle_animation()
 
     def lock(self, lock_array):
-        if lock_array is not None:
-            for led_ind in lock_array:
-                if self._valid_led_index(led_ind):
-                    self.leds[led_ind - 1].off()
-                    if (led_ind - 1) not in self.locked_array:
-                        self.locked_array.append(led_ind - 1)
+        if lock_array is None:
+            return
+
+        if len(lock_array) == 0:
+            self.locked_array = list(range(len(self.input_pins)))
+            for led in self.leds:
+                led.off()
+            return
+
+        for led_ind in lock_array:
+            if self._valid_led_index(led_ind):
+                self.leds[led_ind - 1].off()
+                if (led_ind - 1) not in self.locked_array:
+                    self.locked_array.append(led_ind - 1)
 
     def unlock(self, unlock_array):
-        if unlock_array is not None:
-            for led_ind in unlock_array:
-                if self._valid_led_index(led_ind):
-                    self.leds[led_ind - 1].off()
-                    if (led_ind - 1) in self.locked_array:
-                        self.locked_array.remove(led_ind - 1)
+        if unlock_array is None:
+            return
+
+        if len(unlock_array) == 0:
+            self.locked_array.clear()
+            for led in self.leds:
+                led.off()
+            return
+
+        for led_ind in unlock_array:
+            if self._valid_led_index(led_ind):
+                self.leds[led_ind - 1].off()
+                if (led_ind - 1) in self.locked_array:
+                    self.locked_array.remove(led_ind - 1)
 
     def cleanup(self):
         for led in self.leds:
             led.off()
 
     def set_light(self, on: bool, index: int | None = None):
-        """Allume/éteint une LED (ou toutes si index=None) sans affecter le verrou logique."""
+        """Allume/eteint une LED (ou toutes si index=None) sans affecter le verrou logique."""
         if index is None:
             for led in self.leds:
                 (led.on() if on else led.off())
@@ -246,16 +271,16 @@ async def mqtt_client():
         try:
             print("Tentative de connexion au broker MQTT...")
             await client.connect('mqtt://localhost:1883/')
-            print("Connecté au broker MQTT")
+            print("Connecte au broker MQTT")
 
             await client.subscribe([('buzzer/config', 1)])
-            print("Abonné au topic 'buzzer/config'")
+            print("Abonne au topic 'buzzer/config'")
 
             await client.subscribe([('buzzer/control', 1)])
-            print("Abonné au topic 'buzzer/control'")
+            print("Abonne au topic 'buzzer/control'")
 
             await client.subscribe([('buzzer/pressed', 1)])
-            print("Abonné au topic 'buzzer/pressed'")
+            print("Abonne au topic 'buzzer/pressed'")
 
             while True:
                 message = await client.deliver_message()
@@ -264,7 +289,7 @@ async def mqtt_client():
 
         except asyncio.CancelledError:
             await client.disconnect()
-            print("Déconnexion MQTT propre")
+            print("Deconnexion MQTT propre")
             break
 
         except Exception as e:
@@ -278,19 +303,19 @@ if __name__ == '__main__':
 
     loop = asyncio.get_event_loop()
 
-    # démarrage MQTT en tâche de fond
+    # demarrage MQTT en tache de fond
     task = loop.create_task(mqtt_client())
 
-    # instancie le contrôleur (garde la même loop pour run_coroutine_threadsafe)
+    # instancie le controleur (garde la meme loop pour run_coroutine_threadsafe)
     controller = ButtonController(config.get('input_pins', []), config.get('led_pins', []), loop)
 
     try:
-        # lance la boucle asyncio (nécessaire !)
+        # lance la boucle asyncio (necessaire !)
         loop.run_forever()
     except KeyboardInterrupt:
         pass
     finally:
-        # arrêt propre
+        # arret propre
         if controller:
             controller.cleanup()
         if not task.done():
@@ -301,4 +326,4 @@ if __name__ == '__main__':
                 pass
         loop.stop()
         loop.close()
-        print("Programme arrêté proprement")
+        print("Programme arrete proprement")
